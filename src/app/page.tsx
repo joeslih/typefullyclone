@@ -57,6 +57,11 @@ export default function Home() {
                 Start Composing
               </Button>
             </Link>
+            <Link href="/drafts">
+              <Button size="lg" variant="outline" className="w-full">
+                View Saved Drafts
+              </Button>
+            </Link>
             <div className="text-center text-sm text-muted-foreground">
               A minimal clone of Typefully for learning purposes
             </div>

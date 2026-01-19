@@ -74,6 +74,7 @@ export interface SaveThreadRequest {
     content: string
     order: number
     media?: MediaData
+    pollData?: PollData | null
   }[]
 }
 

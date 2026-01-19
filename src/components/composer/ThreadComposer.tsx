@@ -1,26 +1,86 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { useComposerStore } from '@/stores/composerStore'
 import { TweetInput } from './TweetInput'
 import { ThreadPreview } from '@/components/preview/ThreadPreview'
 import { Button } from '@/components/ui/button'
-import { Plus, Save, Calendar } from 'lucide-react'
+import { Plus, Save, Calendar, Check } from 'lucide-react'
+import type { SaveThreadRequest } from '@/types'
 
 export function ThreadComposer() {
   const {
     tweets,
+    threadId,
     addTweet,
     updateTweet,
     deleteTweet,
     isSaving,
+    setThreadId,
+    setIsSaving,
+    setLastSaved,
   } = useComposerStore()
 
+  const [saveSuccess, setSaveSuccess] = useState(false)
   const canAddMore = tweets.length < 25
 
   const handleSave = async () => {
-    // TODO: Implement save functionality
-    console.log('Saving thread...', tweets)
+    try {
+      setIsSaving(true)
+      setSaveSuccess(false)
+
+      // Filter out empty tweets
+      const validTweets = tweets.filter(t => t.content.trim())
+
+      if (validTweets.length === 0) {
+        alert('Please add at least one tweet with content')
+        return
+      }
+
+      // Prepare request
+      const request: SaveThreadRequest = {
+        title: `Thread ${new Date().toLocaleDateString()}`,
+        tweets: validTweets.map(t => ({
+          content: t.content,
+          order: t.order,
+          media: t.mediaUrls && t.mediaUrls.length > 0
+            ? { urls: t.mediaUrls, types: t.mediaUrls.map(() => 'image') }
+            : undefined,
+        })),
+      }
+
+      // Call API
+      const url = threadId ? `/api/threads/${threadId}` : '/api/threads'
+      const method = threadId ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+      })
+
+      const data = await response.json()
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to save thread')
+      }
+
+      // Update store with thread ID
+      if (!threadId && data.data?.id) {
+        setThreadId(data.data.id)
+      }
+
+      setLastSaved(new Date())
+      setSaveSuccess(true)
+
+      // Hide success message after 3 seconds
+      setTimeout(() => setSaveSuccess(false), 3000)
+    } catch (error) {
+      console.error('Error saving thread:', error)
+      alert(error instanceof Error ? error.message : 'Failed to save thread')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleSchedule = () => {
@@ -45,9 +105,20 @@ export function ThreadComposer() {
           <Button
             onClick={handleSave}
             disabled={isSaving || tweets.every(t => !t.content.trim())}
+            variant={saveSuccess ? 'default' : 'default'}
+            className={saveSuccess ? 'bg-green-600 hover:bg-green-700' : ''}
           >
-            <Save className="w-4 h-4 mr-2" />
-            {isSaving ? 'Saving...' : 'Save Draft'}
+            {saveSuccess ? (
+              <>
+                <Check className="w-4 h-4 mr-2" />
+                Saved!
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                {isSaving ? 'Saving...' : threadId ? 'Update Draft' : 'Save Draft'}
+              </>
+            )}
           </Button>
         </div>
       </div>
